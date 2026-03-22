@@ -241,9 +241,18 @@ class CameraFragment : Fragment() {
             }
         }
         val scaleGestureDetector = ScaleGestureDetector(requireContext(), listener)
-        binding.viewFinder.setOnTouchListener { _, event ->
+        binding.viewFinder.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                    view.parent.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.parent.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+
             scaleGestureDetector.onTouchEvent(event)
-            if (event.action == MotionEvent.ACTION_UP) {
+            if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
                 val factory = binding.viewFinder.meteringPointFactory
                 val point = factory.createPoint(event.x, event.y)
                 camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
