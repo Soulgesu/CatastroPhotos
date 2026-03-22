@@ -7,6 +7,8 @@ import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
@@ -18,17 +20,35 @@ import java.util.zip.ZipOutputStream
 
 class MediaRepository(private val context: Context) {
 
+    companion object {
+        // Estado estático compartido entre todas las instancias del repositorio
+        private var cachedFolders: List<FolderUIState>? = null
+        private val cachedPhotos = mutableMapOf<String, List<PhotoUIState>>()
+        
+        var lastCapturedFolder: String? = null
+            private set
+
+        private val _dataVersion = MutableStateFlow(0L)
+        val dataVersion = _dataVersion.asStateFlow()
+
+        fun clearCache() {
+            cachedFolders = null
+            cachedPhotos.clear()
+            _dataVersion.value = System.currentTimeMillis()
+        }
+
+        fun notifyPhotoSaved(folderName: String) {
+            lastCapturedFolder = folderName
+            clearCache()
+        }
+    }
+
     private val contentResolver = context.contentResolver
     private val folderPrefs = context.getSharedPreferences("FolderExportState", Context.MODE_PRIVATE)
 
-    // Caché en memoria para fluidez
-    private var cachedFolders: List<FolderUIState>? = null
-    private val cachedPhotos = mutableMapOf<String, List<PhotoUIState>>()
-
-    fun clearCache() {
-        cachedFolders = null
-        cachedPhotos.clear()
-    }
+    // Delegados para compatibilidad con instancias existentes
+    fun clearCache() = MediaRepository.clearCache()
+    fun notifyPhotoSaved(folderName: String) = MediaRepository.notifyPhotoSaved(folderName)
 
     suspend fun getFolders(): List<FolderUIState> = withContext(Dispatchers.IO) {
         cachedFolders?.let { return@withContext it }
@@ -210,6 +230,7 @@ class MediaRepository(private val context: Context) {
             }
         }
 
+        clearCache()
         FileProvider.getUriForFile(context, "${context.packageName}.provider", zipFile)
     }
 

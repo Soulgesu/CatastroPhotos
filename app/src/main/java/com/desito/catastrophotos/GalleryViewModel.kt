@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
@@ -37,9 +39,38 @@ class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
 
+    init {
+        loadFolders()
+        // Refrescar reactivamente cuando el repositorio notifica cambios
+        viewModelScope.launch {
+            MediaRepository.dataVersion.collectLatest {
+                delay(500) // Dar tiempo a MediaStore para indexar
+                loadFolders()
+                
+                val current = _currentFolder.value
+                val last = MediaRepository.lastCapturedFolder
+                
+                if (current != null && last != null) {
+                    if (current == last) {
+                        openFolder(current) // Refrescar lista de fotos interna
+                    } else {
+                        backToFolders() // Volver a lista si es otra carpeta
+                    }
+                }
+            }
+        }
+    }
+
     fun loadFolders() {
         viewModelScope.launch {
-            _folders.value = repository.getFolders()
+            val initial = repository.getFolders()
+            _folders.value = initial
+            
+            // Si está vacío, reintentar una vez tras un pequeño delay (útil en primera ejecución)
+            if (initial.isEmpty()) {
+                delay(1000)
+                _folders.value = repository.getFolders()
+            }
         }
     }
 

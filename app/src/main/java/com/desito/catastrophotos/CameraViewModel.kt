@@ -95,4 +95,8 @@ class CameraViewModel(private val repository: MediaRepository, context: Context)
     fun clearCache() {
         repository.clearCache()
     }
+
+    fun notifyPhotoSaved(folderName: String) {
+        repository.notifyPhotoSaved(folderName)
+    }
 }

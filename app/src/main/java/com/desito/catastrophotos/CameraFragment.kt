@@ -174,7 +174,8 @@ class CameraFragment : Fragment() {
                         .show()
                 }
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    viewModel.clearCache()
+                    val currentFolder = "${viewModel.sector.value}_${viewModel.manzana.value}"
+                    viewModel.notifyPhotoSaved(currentFolder)
                     Snackbar.make(binding.root, "📸 $name", Snackbar.LENGTH_SHORT)
                         .setAnchorView(binding.bottomCard)
                         .show()
@@ -188,9 +189,21 @@ class CameraFragment : Fragment() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).build()
-                .also { it.setSurfaceProvider(binding.viewFinder.surfaceProvider) }
-            imageCapture = ImageCapture.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3).build()
+            val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+            .setAspectRatioStrategy(androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+            .build()
+
+        val preview = Preview.Builder()
+            .setResolutionSelector(resolutionSelector)
+            .build()
+            .also {
+                it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+            }
+
+        imageCapture = ImageCapture.Builder()
+            .setResolutionSelector(resolutionSelector)
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             try {
                 cameraProvider.unbindAll()
