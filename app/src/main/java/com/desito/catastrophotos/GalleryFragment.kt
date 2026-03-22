@@ -89,6 +89,7 @@ class GalleryFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
+        binding.recyclerView.setHasFixedSize(true)
         binding.recyclerView.itemAnimator = null // Evitar parpadeos extra con ListAdapter
     }
 

@@ -40,7 +40,10 @@ class PhotoAdapter(
             holder.b.root.strokeWidth = 0
         } else {
             holder.b.ivPhoto.alpha = 1.0f
-            holder.b.ivPhoto.load(item.uri)
+            holder.b.ivPhoto.load(item.uri) {
+                crossfade(true)
+                size(300, 400) // Miniatura optimizada para el grid
+            }
             holder.b.tvPhotoName.text = fileName.substringBeforeLast(".")
             holder.b.btnDelete.visibility = View.VISIBLE
 

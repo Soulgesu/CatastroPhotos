@@ -21,7 +21,17 @@ class MediaRepository(private val context: Context) {
     private val contentResolver = context.contentResolver
     private val folderPrefs = context.getSharedPreferences("FolderExportState", Context.MODE_PRIVATE)
 
+    // Caché en memoria para fluidez
+    private var cachedFolders: List<FolderUIState>? = null
+    private val cachedPhotos = mutableMapOf<String, List<PhotoUIState>>()
+
+    fun clearCache() {
+        cachedFolders = null
+        cachedPhotos.clear()
+    }
+
     suspend fun getFolders(): List<FolderUIState> = withContext(Dispatchers.IO) {
+        cachedFolders?.let { return@withContext it }
         val folders = mutableMapOf<String, Int>()
         val projection = arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
         val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
@@ -41,12 +51,15 @@ class MediaRepository(private val context: Context) {
             }
         }
 
-        folders.toList().sortedBy { it.first }.map { (name, count) ->
+        val result = folders.toList().sortedBy { it.first }.map { (name, count) ->
             FolderUIState(name, count, isFolderDirty(name))
         }
+        cachedFolders = result
+        result
     }
 
     suspend fun getPhotos(folderName: String): List<PhotoUIState> = withContext(Dispatchers.IO) {
+        cachedPhotos[folderName]?.let { return@withContext it }
         val currentPhotos = mutableListOf<Triple<String, Uri, String>>()
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
@@ -95,7 +108,9 @@ class MediaRepository(private val context: Context) {
             }
         }
 
-        photoStates.sortedBy { it.name }
+        val result = photoStates.sortedBy { it.name }
+        cachedPhotos[folderName] = result
+        result
     }
 
     suspend fun photoExists(fileName: String, relativePath: String): Boolean = withContext(Dispatchers.IO) {
@@ -114,6 +129,7 @@ class MediaRepository(private val context: Context) {
         val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media.RELATIVE_PATH} = ?"
         val selectionArgs = arrayOf("$fileName.jpg", "$relativePath/")
         contentResolver.delete(uri, selection, selectionArgs)
+        clearCache()
     }
 
     private fun isFolderDirty(folderName: String): Boolean {
@@ -208,7 +224,9 @@ class MediaRepository(private val context: Context) {
 
     suspend fun deletePhoto(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            contentResolver.delete(uri, null, null) > 0
+            val result = contentResolver.delete(uri, null, null) > 0
+            if (result) clearCache()
+            result
         } catch (e: Exception) {
             false
         }
@@ -227,6 +245,7 @@ class MediaRepository(private val context: Context) {
                     apply()
                 }
             }
+            clearCache()
             true
         } catch (e: Exception) {
             false

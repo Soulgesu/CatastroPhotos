@@ -91,4 +91,8 @@ class CameraViewModel(private val repository: MediaRepository, context: Context)
             _captureEvent.emit(CaptureAction.Proceed(name, path))
         }
     }
+
+    fun clearCache() {
+        repository.clearCache()
+    }
 }

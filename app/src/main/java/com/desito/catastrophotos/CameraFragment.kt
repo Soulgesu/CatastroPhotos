@@ -174,6 +174,7 @@ class CameraFragment : Fragment() {
                         .show()
                 }
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    viewModel.clearCache()
                     Snackbar.make(binding.root, "📸 $name", Snackbar.LENGTH_SHORT)
                         .setAnchorView(binding.bottomCard)
                         .show()
@@ -203,22 +204,36 @@ class CameraFragment : Fragment() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupZoomAndFocus() {
-        val listener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        val scaleListener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 val currentZoomRatio = camera?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f
                 camera?.cameraControl?.setZoomRatio(currentZoomRatio * detector.scaleFactor)
                 return true
             }
         }
-        val scaleGestureDetector = ScaleGestureDetector(requireContext(), listener)
-        binding.viewFinder.setOnTouchListener { view, event ->
-            scaleGestureDetector.onTouchEvent(event)
-            if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
+        val scaleGestureDetector = ScaleGestureDetector(requireContext(), scaleListener)
+
+        val tapDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
                 val factory = binding.viewFinder.meteringPointFactory
-                val point = factory.createPoint(event.x, event.y)
+                val point = factory.createPoint(e.x, e.y)
                 camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
-                animateFocusRing(event.x, event.y)
+                animateFocusRing(e.x, e.y)
+                return true
             }
+        })
+
+        binding.viewFinder.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                    view.parent.requestDisallowInterceptTouchEvent(true)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    view.parent.requestDisallowInterceptTouchEvent(false)
+                }
+            }
+            scaleGestureDetector.onTouchEvent(event)
+            tapDetector.onTouchEvent(event)
             true
         }
     }
