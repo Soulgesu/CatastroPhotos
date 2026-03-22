@@ -8,7 +8,7 @@
     tools:context=".CameraFragment">
 
     <!-- Cámara centrada en el espacio superior, relación 3:4 -->
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/cameraCard"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -27,7 +27,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Panel de Control Inferior -->
     <com.google.android.material.card.MaterialCardView

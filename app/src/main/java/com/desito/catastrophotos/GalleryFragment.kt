@@ -143,7 +143,19 @@ class GalleryFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
-                    binding.recyclerView.adapter = FolderAdapter(folderStates)
+                    binding.recyclerView.adapter = FolderAdapter(
+                        items = folderStates,
+                        isSelectionMode = { isSelectionMode },
+                        isSelected = { selectedFolders.contains(it) },
+                        getThemeColor = ::getThemeColor,
+                        onClick = { folderName ->
+                            if (isSelectionMode) toggleFolderSelection(folderName)
+                            else { currentFolder = folderName; loadPhotos(folderName) }
+                        },
+                        onLongClick = { folderName ->
+                            if (!isSelectionMode) enterSelectionMode(folderName)
+                        }
+                    )
                     binding.tvEmpty.visibility = if (folderStates.isEmpty()) View.VISIBLE else View.GONE
                 }
             }
@@ -193,6 +205,17 @@ class GalleryFragment : Fragment() {
         binding.recyclerView.adapter?.notifyDataSetChanged()
     }
 
+    private fun toggleFolderSelection(folderName: String) {
+        if (selectedFolders.contains(folderName)) {
+            selectedFolders.remove(folderName)
+            if (selectedFolders.isEmpty()) exitSelectionMode()
+        } else {
+            selectedFolders.add(folderName)
+        }
+        updateToolbarForSelection()
+        binding.recyclerView.adapter?.notifyDataSetChanged()
+    }
+
     private fun exportSelectedFolders() {
         if (selectedFolders.isEmpty()) return
 
@@ -231,16 +254,21 @@ class GalleryFragment : Fragment() {
     }
 
     private fun createZipFromFolders(folders: List<String>): File {
-        // Formato de fecha solicitado: hh:mm dd/mm/aaaa (adaptado para nombre de archivo seguro)
         val dateFormat = SimpleDateFormat("HH-mm_dd-MM-yyyy", Locale.getDefault())
         val dateString = dateFormat.format(Date())
-        
+
         val cacheDir = requireContext().cacheDir
+        // Limpiar exports anteriores para no acumular archivos
+        cacheDir.listFiles { f -> f.name.startsWith("Catastro_") && f.name.endsWith(".zip") }
+            ?.forEach { it.delete() }
         val zipFile = File(cacheDir, "Catastro_$dateString.zip")
-        
+
         ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
             for (folderName in folders) {
-                val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DISPLAY_NAME)
+                val projection = arrayOf(
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DISPLAY_NAME
+                )
                 val selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
                 val selectionArgs = arrayOf("Pictures/CatastroPhotos/$folderName/")
 
@@ -248,18 +276,21 @@ class GalleryFragment : Fragment() {
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     projection, selection, selectionArgs, null
                 )?.use { cursor ->
+                    val idIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+                    val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
                     while (cursor.moveToNext()) {
-                        val filePath = cursor.getString(0)
-                        val fileName = cursor.getString(1)
-                        val file = File(filePath)
-                        if (file.exists()) {
+                        val id = cursor.getLong(idIdx)
+                        val fileName = cursor.getString(nameIdx)
+                        val uri = ContentUris.withAppendedId(
+                            MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id
+                        )
+                        requireContext().contentResolver.openInputStream(uri)?.use { input ->
                             zos.putNextEntry(ZipEntry("$folderName/$fileName"))
-                            file.inputStream().use { it.copyTo(zos) }
+                            input.copyTo(zos)
                             zos.closeEntry()
                         }
                     }
                 }
-                // Guardar el estado inmediatamente después de comprimir
                 saveFolderExportStateSynchronous(folderName)
             }
         }
@@ -276,8 +307,8 @@ class GalleryFragment : Fragment() {
         val selectionArgs = arrayOf("Pictures/CatastroPhotos/$folderName/")
         
         val fingerprints = mutableSetOf<String>()
-        var combinedString = ""
-        
+        val sb = StringBuilder()
+
         requireContext().contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection, selection, selectionArgs, "${MediaStore.Images.Media.DISPLAY_NAME} ASC"
@@ -285,16 +316,16 @@ class GalleryFragment : Fragment() {
             val nameIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val dateIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            
+
             while (cursor.moveToNext()) {
                 val fingerprint = "${cursor.getString(nameIdx)}:${cursor.getLong(dateIdx)}:${cursor.getLong(sizeIdx)}"
                 fingerprints.add(fingerprint)
-                combinedString += fingerprint
+                sb.append(fingerprint)
             }
         }
-        
+
         val hash = try {
-            MessageDigest.getInstance("MD5").digest(combinedString.toByteArray())
+            MessageDigest.getInstance("MD5").digest(sb.toString().toByteArray())
                 .joinToString("") { "%02x".format(it) }
         } catch (e: Exception) { "" }
         
@@ -312,11 +343,6 @@ class GalleryFragment : Fragment() {
         }.commit()
     }
 
-    private fun isFileNew(folderName: String, fileName: String, dateMod: Long, size: Long): Boolean {
-        val fingerprints = requireContext().getSharedPreferences("FolderExportState", Context.MODE_PRIVATE)
-            .getStringSet("files_$folderName", null) ?: return true
-        return !fingerprints.contains("$fileName:$dateMod:$size")
-    }
 
     private fun shareZip(uri: Uri) {
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -391,11 +417,12 @@ class GalleryFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 if (_binding != null) {
                     binding.recyclerView.layoutManager = GridLayoutManager(requireContext(), 3)
-                    binding.recyclerView.adapter = PhotoAdapter(folderName, sortedPhotos, { uri, name ->
-                        if (uri != null) showPhotoPopup(uri, name)
-                    }, { uri, name ->
-                        if (uri != null) confirmDelete(uri, name, folderName)
-                    })
+                    binding.recyclerView.adapter = PhotoAdapter(
+                        items = sortedPhotos,
+                        getThemeColor = ::getThemeColor,
+                        onClick = { uri, name -> if (uri != null) showPhotoPopup(uri, name) },
+                        onDelete = { uri, name -> if (uri != null) confirmDelete(uri, name, folderName) }
+                    )
                 }
             }
         }
@@ -443,112 +470,4 @@ class GalleryFragment : Fragment() {
         return typedValue.data
     }
 
-    private inner class FolderAdapter(private val items: List<FolderUIState>) :
-        RecyclerView.Adapter<FolderAdapter.ViewHolder>() {
-        inner class ViewHolder(val b: ItemFolderBinding) : RecyclerView.ViewHolder(b.root)
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
-            ItemFolderBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        )
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            val folderName = item.name
-            holder.b.tvFolderName.text = folderName
-            holder.b.tvPhotoCount.text = "${item.count} fotos"
-            
-            val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-            // Blanco puro brillante para máxima legibilidad
-            val primaryTextColor = if (isDark) Color.WHITE else getThemeColor(com.google.android.material.R.attr.colorOnSurface)
-            val modifiedColor = if (isDark) Color.parseColor("#FFCC80") else Color.parseColor("#E65100")
-
-            holder.b.tvFolderName.setTypeface(null, Typeface.BOLD)
-            holder.b.tvFolderName.alpha = 1.0f
-
-            if (item.isDirty) {
-                holder.b.tvFolderName.text = "$folderName ⚠️"
-                holder.b.tvFolderName.setTextColor(modifiedColor)
-            } else {
-                holder.b.tvFolderName.setTextColor(primaryTextColor)
-            }
-
-            holder.b.checkBox.visibility = if (isSelectionMode) View.VISIBLE else View.GONE
-            holder.b.ivArrow.visibility = if (isSelectionMode) View.GONE else View.VISIBLE
-            holder.b.checkBox.isChecked = selectedFolders.contains(folderName)
-            
-            val backgroundColor = if (selectedFolders.contains(folderName)) {
-                getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer)
-            } else {
-                Color.TRANSPARENT
-            }
-            holder.b.cardFolder.setCardBackgroundColor(backgroundColor)
-
-            holder.b.root.setOnClickListener {
-                if (isSelectionMode) toggleSelection(folderName)
-                else {
-                    currentFolder = folderName
-                    loadPhotos(folderName)
-                }
-            }
-
-            holder.b.root.setOnLongClickListener {
-                if (!isSelectionMode) enterSelectionMode(folderName)
-                true
-            }
-        }
-        override fun getItemCount() = items.size
-
-        private fun toggleSelection(folderName: String) {
-            if (selectedFolders.contains(folderName)) {
-                selectedFolders.remove(folderName)
-                if (selectedFolders.isEmpty()) exitSelectionMode()
-            } else {
-                selectedFolders.add(folderName)
-            }
-            updateToolbarForSelection()
-            notifyDataSetChanged()
-        }
-    }
-
-    private inner class PhotoAdapter(
-        private val folderName: String,
-        private val items: List<PhotoUIState>, 
-        val onClick: (Uri?, String) -> Unit,
-        val onDelete: (Uri?, String) -> Unit
-    ) : RecyclerView.Adapter<PhotoAdapter.ViewHolder>() {
-        inner class ViewHolder(val b: ItemPhotoBinding) : RecyclerView.ViewHolder(b.root)
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
-            ItemPhotoBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        )
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val item = items[position]
-            val fileName = item.name
-            
-            if (item.isDeleted) {
-                holder.b.ivPhoto.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-                holder.b.ivPhoto.alpha = 0.3f
-                holder.b.tvPhotoName.text = "${fileName.substringBeforeLast(".")} (Eliminada)"
-                holder.b.btnDelete.visibility = View.GONE
-                holder.b.root.strokeWidth = 0
-            } else {
-                holder.b.ivPhoto.alpha = 1.0f
-                holder.b.ivPhoto.load(item.uri)
-                holder.b.tvPhotoName.text = fileName.substringBeforeLast(".")
-                holder.b.btnDelete.visibility = View.VISIBLE
-                
-                val isDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-                val highlightColor = if (isDark) Color.parseColor("#FFCC80") else Color.parseColor("#FF9800")
-
-                if (item.isNew) {
-                    holder.b.root.strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 3f, resources.displayMetrics).toInt()
-                    holder.b.root.strokeColor = highlightColor
-                } else {
-                    holder.b.root.strokeWidth = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1f, resources.displayMetrics).toInt()
-                    holder.b.root.strokeColor = getThemeColor(com.google.android.material.R.attr.colorOutlineVariant)
-                }
-            }
-
-            holder.b.root.setOnClickListener { onClick(item.uri, item.name) }
-            holder.b.btnDelete.setOnClickListener { onDelete(item.uri, item.name) }
-        }
-        override fun getItemCount() = items.size
-    }
 }

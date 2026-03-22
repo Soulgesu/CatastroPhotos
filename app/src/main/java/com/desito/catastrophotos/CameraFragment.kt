@@ -21,8 +21,7 @@ import androidx.fragment.app.Fragment
 import com.desito.catastrophotos.databinding.FragmentCameraBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+
 
 class CameraFragment : Fragment() {
     private var _binding: FragmentCameraBinding? = null
@@ -30,7 +29,6 @@ class CameraFragment : Fragment() {
 
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
-    private lateinit var cameraExecutor: ExecutorService
     private lateinit var sharedPreferences: SharedPreferences
 
     private val activityResultLauncher =
@@ -54,7 +52,6 @@ class CameraFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         sharedPreferences = requireContext().getSharedPreferences("CatastroPrefs", Context.MODE_PRIVATE)
-        cameraExecutor = Executors.newSingleThreadExecutor()
 
         setupLetterSpinner()
         loadSavedValues()
@@ -114,6 +111,7 @@ class CameraFragment : Fragment() {
         binding.etSector.setText(sharedPreferences.getString("sector", "01"))
         binding.etManzana.setText(sharedPreferences.getString("manzana", "001"))
         binding.etLote.setText(sharedPreferences.getString("lote", "001"))
+        binding.etLetra.setText(sharedPreferences.getString("letra", ""), false)
     }
 
     private fun saveValues(sector: String, manzana: String, lote: String, letra: String) {
@@ -198,7 +196,14 @@ class CameraFragment : Fragment() {
             ContextCompat.getMainExecutor(requireContext()),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exc: ImageCaptureException) {
-                    Snackbar.make(binding.root, "❌ Error", Snackbar.LENGTH_SHORT)
+                    val msg = when (exc.imageCaptureError) {
+                        ImageCapture.ERROR_FILE_IO -> "Error al guardar la foto"
+                        ImageCapture.ERROR_CAPTURE_FAILED -> "Captura fallida"
+                        ImageCapture.ERROR_CAMERA_CLOSED -> "Cámara cerrada"
+                        ImageCapture.ERROR_INVALID_CAMERA -> "Cámara no disponible"
+                        else -> "Error desconocido"
+                    }
+                    Snackbar.make(binding.root, "❌ $msg", Snackbar.LENGTH_SHORT)
                         .setAnchorView(binding.bottomCard)
                         .show()
                 }
@@ -263,7 +268,6 @@ class CameraFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        cameraExecutor.shutdown()
         _binding = null
     }
 
