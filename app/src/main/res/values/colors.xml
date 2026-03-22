@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- M3 Light Colors -->
+    <color name="primary">#6750A4</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#EADDFF</color>
+    <color name="onPrimaryContainer">#21005D</color>
+    <color name="secondary">#625B71</color>
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="secondaryContainer">#E8DEF8</color>
+    <color name="onSecondaryContainer">#1D192B</color>
+    <color name="background">#FEF7FF</color>
+    <color name="onBackground">#1D1B20</color>
+    <color name="surface">#FEF7FF</color>
+    <color name="onSurface">#1D1B20</color>
+    <color name="surfaceVariant">#E7E0EC</color>
+    <color name="onSurfaceVariant">#49454F</color>
+    <color name="outline">#79747E</color>
+
+    <!-- M3 Dark Colors -->
+    <color name="primaryDark">#D0BCFF</color>
+    <color name="onPrimaryDark">#381E72</color>
+    <color name="primaryContainerDark">#4F378B</color>
+    <color name="onPrimaryContainerDark">#EADDFF</color>
+    <color name="secondaryDark">#CCC2DC</color>
+    <color name="onSecondaryDark">#332D41</color>
+    <color name="secondaryContainerDark">#4A4458</color>
+    <color name="onSecondaryContainerDark">#E8DEF8</color>
+    <color name="backgroundDark">#141218</color>
+    <color name="onBackgroundDark">#E6E1E5</color>
+    <color name="surfaceDark">#141218</color>
+    <color name="onSurfaceDark">#E6E1E5</color>
+    <color name="surfaceVariantDark">#49454F</color>
+    <color name="onSurfaceVariantDark">#CAC4D0</color>
+    <color name="outlineDark">#938F99</color>
+</resources>

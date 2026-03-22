@@ -1,0 +1,27 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.CatastroPhotos" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primaryDark</item>
+        <item name="colorOnPrimary">@color/onPrimaryDark</item>
+        <item name="colorPrimaryContainer">@color/primaryContainerDark</item>
+        <item name="colorOnPrimaryContainer">@color/onPrimaryContainerDark</item>
+
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/secondaryDark</item>
+        <item name="colorOnSecondary">@color/onSecondaryDark</item>
+        <item name="colorSecondaryContainer">@color/secondaryContainerDark</item>
+        <item name="colorOnSecondaryContainer">@color/onSecondaryContainerDark</item>
+
+        <!-- Background and Surface -->
+        <item name="android:windowBackground">@color/backgroundDark</item>
+        <item name="colorSurface">@color/surfaceDark</item>
+        <item name="colorOnSurface">@color/onSurfaceDark</item>
+        <item name="colorSurfaceVariant">@color/surfaceVariantDark</item>
+        <item name="colorOnSurfaceVariant">@color/onSurfaceVariantDark</item>
+        <item name="colorOutline">@color/outlineDark</item>
+
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
+    </style>
+</resources>

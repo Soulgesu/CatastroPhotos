@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">CatastroPhotos</string>
+    <string name="title_folders">Carpetas de Catastro</string>
+    <string name="empty_records">No hay registros aún</string>
+    <string name="btn_capture">CAPTURAR FOTO CATASTRAL</string>
+    <string name="msg_complete_fields">Completa Sector, Manzana y Lote</string>
+    <string name="dialog_delete_title">Eliminar foto</string>
+    <string name="dialog_delete_msg">¿Estás seguro de eliminar la foto %1$s? Esta acción no se puede deshacer.</string>
+    <string name="dialog_overwrite_title">Foto duplicada</string>
+    <string name="dialog_overwrite_msg">Ya existe una foto para el Lote %1$s. ¿Deseas sobreescribirla?</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_overwrite">Sobreescribir</string>
+    <string name="export_loading_title">Comprimiendo...</string>
+    <string name="export_loading_msg">Preparando archivos para enviar</string>
+</resources>
