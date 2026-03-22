@@ -13,4 +13,8 @@
     <string name="action_overwrite">Sobreescribir</string>
     <string name="export_loading_title">Comprimiendo...</string>
     <string name="export_loading_msg">Preparando archivos para enviar</string>
+    <string name="selection_count">%1$d seleccionadas</string>
+    <string name="error_export">Error al exportar: %1$s</string>
+    <string name="error_delete_photo">No se pudo eliminar la foto</string>
+    <string name="action_share">Enviar catastro</string>
 </resources>

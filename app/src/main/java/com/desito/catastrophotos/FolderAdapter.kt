@@ -1,5 +1,7 @@
 package com.desito.catastrophotos
+import com.desito.catastrophotos.R
 
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
@@ -8,16 +10,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import com.desito.catastrophotos.databinding.ItemFolderBinding
 
 class FolderAdapter(
-    private val items: List<FolderUIState>,
     private val isSelectionMode: () -> Boolean,
     private val isSelected: (String) -> Boolean,
     private val getThemeColor: (Int) -> Int,
     private val onClick: (String) -> Unit,
     private val onLongClick: (String) -> Unit
-) : RecyclerView.Adapter<FolderAdapter.ViewHolder>() {
+) : ListAdapter<FolderUIState, FolderAdapter.ViewHolder>(DiffCallback) {
 
     inner class ViewHolder(val b: ItemFolderBinding) : RecyclerView.ViewHolder(b.root)
 
@@ -26,7 +29,7 @@ class FolderAdapter(
     )
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = items[position]
+        val item = getItem(position)
         val folderName = item.name
         val inSelectionMode = isSelectionMode()
         val selected = isSelected(folderName)
@@ -54,9 +57,9 @@ class FolderAdapter(
         holder.b.checkBox.isChecked = selected
 
         val backgroundColor = if (selected) {
-            getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer)
+            ColorStateList.valueOf(getThemeColor(com.google.android.material.R.attr.colorPrimaryContainer))
         } else {
-            Color.TRANSPARENT
+            ColorStateList.valueOf(Color.TRANSPARENT)
         }
         holder.b.cardFolder.setCardBackgroundColor(backgroundColor)
 
@@ -64,5 +67,8 @@ class FolderAdapter(
         holder.b.root.setOnLongClickListener { onLongClick(folderName); true }
     }
 
-    override fun getItemCount() = items.size
+    companion object DiffCallback : DiffUtil.ItemCallback<FolderUIState>() {
+        override fun areItemsTheSame(oldItem: FolderUIState, newItem: FolderUIState) = oldItem.name == newItem.name
+        override fun areContentsTheSame(oldItem: FolderUIState, newItem: FolderUIState) = oldItem == newItem
+    }
 }

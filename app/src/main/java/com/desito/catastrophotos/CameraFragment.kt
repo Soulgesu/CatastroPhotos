@@ -1,10 +1,9 @@
 package com.desito.catastrophotos
+import com.desito.catastrophotos.R
 
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ContentValues
-import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -17,11 +16,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.desito.catastrophotos.databinding.FragmentCameraBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
-
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class CameraFragment : Fragment() {
     private var _binding: FragmentCameraBinding? = null
@@ -29,14 +33,14 @@ class CameraFragment : Fragment() {
 
     private var imageCapture: ImageCapture? = null
     private var camera: Camera? = null
-    private lateinit var sharedPreferences: SharedPreferences
+
+    private val viewModel: CameraViewModel by viewModels {
+        AppViewModelFactory(MediaRepository(requireContext().applicationContext), requireContext().applicationContext)
+    }
 
     private val activityResultLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            var permissionGranted = true
-            permissions.entries.forEach {
-                if (it.key in REQUIRED_PERMISSIONS && !it.value) permissionGranted = false
-            }
+            val permissionGranted = REQUIRED_PERMISSIONS.all { permissions[it] == true }
             if (!permissionGranted) {
                 Toast.makeText(requireContext(), "Permisos no concedidos", Toast.LENGTH_SHORT).show()
             } else {
@@ -51,131 +55,95 @@ class CameraFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sharedPreferences = requireContext().getSharedPreferences("CatastroPrefs", Context.MODE_PRIVATE)
-
-        setupLetterSpinner()
-        loadSavedValues()
+        setupInputs()
         setupControlButtons()
+        observeViewModel()
 
         if (allPermissionsGranted()) {
             startCamera()
         } else {
-            requestPermissions()
+            activityResultLauncher.launch(REQUIRED_PERMISSIONS)
         }
 
-        binding.btnCapture.setOnClickListener { checkAndTakePhoto() }
+        binding.btnCapture.setOnClickListener { viewModel.onCaptureClicked() }
     }
 
-    private fun requestPermissions() {
-        activityResultLauncher.launch(REQUIRED_PERMISSIONS)
+    override fun onResume() {
+        super.onResume()
+        if (allPermissionsGranted()) {
+            startCamera()
+        }
     }
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun setupLetterSpinner() {
-        val letters = mutableListOf<String>("")
-        for (i in 'A'..'Z') {
-            letters.add(i.toString())
-        }
+    private fun setupInputs() {
+        // Letra Spinner
+        val letters = mutableListOf("") + ('A'..'Z').map { it.toString() }
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, letters)
         binding.etLetra.setAdapter(adapter)
-        binding.etLetra.setText("", false)
+
+        // Escuchar cambios y actualizar ViewModel
+        binding.etSector.doAfterTextChanged { viewModel.updateSector(it?.toString() ?: "") }
+        binding.etManzana.doAfterTextChanged { viewModel.updateManzana(it?.toString() ?: "") }
+        binding.etLote.doAfterTextChanged { viewModel.updateLote(it?.toString() ?: "") }
+        binding.etLetra.doAfterTextChanged { viewModel.updateLetra(it?.toString() ?: "") }
     }
 
     private fun setupControlButtons() {
-        binding.btnPlusSector.setOnClickListener { updateValue("sector", 1) }
-        binding.btnMinusSector.setOnClickListener { updateValue("sector", -1) }
-        binding.btnPlusManzana.setOnClickListener { updateValue("manzana", 1) }
-        binding.btnMinusManzana.setOnClickListener { updateValue("manzana", -1) }
-        binding.btnPlusLote.setOnClickListener { updateValue("lote", 1) }
-        binding.btnMinusLote.setOnClickListener { updateValue("lote", -1) }
+        binding.btnPlusSector.setOnClickListener { viewModel.incrementValue("sector", 1) }
+        binding.btnMinusSector.setOnClickListener { viewModel.incrementValue("sector", -1) }
+        binding.btnPlusManzana.setOnClickListener { viewModel.incrementValue("manzana", 1) }
+        binding.btnMinusManzana.setOnClickListener { viewModel.incrementValue("manzana", -1) }
+        binding.btnPlusLote.setOnClickListener { viewModel.incrementValue("lote", 1) }
+        binding.btnMinusLote.setOnClickListener { viewModel.incrementValue("lote", -1) }
     }
 
-    private fun updateValue(type: String, delta: Int) {
-        val editText = when(type) {
-            "sector" -> binding.etSector
-            "manzana" -> binding.etManzana
-            "lote" -> binding.etLote
-            else -> return
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            viewModel.sector.collectLatest { if (binding.etSector.text.toString() != it) binding.etSector.setText(it) }
         }
-        val length = if (type == "sector") 2 else 3
-        val currentStr = editText.text.toString().trim()
-        val currentValue = if (currentStr.isEmpty()) 0 else currentStr.toIntOrNull() ?: 0
-        val newValue = (currentValue + delta).coerceAtLeast(1)
-        editText.setText(newValue.toString().padStart(length, '0'))
-    }
-
-    private fun loadSavedValues() {
-        binding.etSector.setText(sharedPreferences.getString("sector", "01"))
-        binding.etManzana.setText(sharedPreferences.getString("manzana", "001"))
-        binding.etLote.setText(sharedPreferences.getString("lote", "001"))
-        binding.etLetra.setText(sharedPreferences.getString("letra", ""), false)
-    }
-
-    private fun saveValues(sector: String, manzana: String, lote: String, letra: String) {
-        sharedPreferences.edit().apply {
-            putString("sector", sector)
-            putString("manzana", manzana)
-            putString("lote", lote)
-            putString("letra", letra)
-            apply()
+        lifecycleScope.launch {
+            viewModel.manzana.collectLatest { if (binding.etManzana.text.toString() != it) binding.etManzana.setText(it) }
         }
-    }
-
-    private fun checkAndTakePhoto() {
-        val sectorInput = binding.etSector.text.toString().trim()
-        val manzanaInput = binding.etManzana.text.toString().trim()
-        val loteInput = binding.etLote.text.toString().trim()
-        val letra = binding.etLetra.text.toString().trim()
-
-        if (sectorInput.isEmpty() || manzanaInput.isEmpty() || loteInput.isEmpty()) {
-            Snackbar.make(binding.root, getString(R.string.msg_complete_fields), Snackbar.LENGTH_SHORT)
-                .setAnchorView(binding.bottomCard)
-                .show()
-            return
+        lifecycleScope.launch {
+            viewModel.lote.collectLatest { if (binding.etLote.text.toString() != it) binding.etLote.setText(it) }
+        }
+        lifecycleScope.launch {
+            viewModel.letra.collectLatest { if (binding.etLetra.text.toString() != it) binding.etLetra.setText(it, false) }
         }
 
-        val sector = sectorInput.padStart(2, '0')
-        val manzana = manzanaInput.padStart(3, '0')
-        val lote = loteInput.padStart(3, '0')
-        val folderName = "${sector}_${manzana}"
-        val fileName = if (letra.isEmpty()) "${sector}_${manzana}_${lote}" else "${sector}_${manzana}_${lote}_${letra}"
-        val relativePath = "Pictures/CatastroPhotos/$folderName"
-
-        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(MediaStore.Images.Media._ID)
-        val selection = "${MediaStore.Images.Media.DISPLAY_NAME} = ? AND ${MediaStore.Images.Media.RELATIVE_PATH} = ?"
-        val selectionArgs = arrayOf("$fileName.jpg", "$relativePath/")
-
-        val cursor = requireContext().contentResolver.query(uri, projection, selection, selectionArgs, null)
-        val exists = cursor?.use { it.count > 0 } ?: false
-
-        if (exists) {
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(getString(R.string.dialog_overwrite_title))
-                .setMessage(getString(R.string.dialog_overwrite_msg, lote))
-                .setNegativeButton(getString(R.string.action_cancel), null)
-                .setPositiveButton(getString(R.string.action_overwrite)) { _, _ ->
-                    requireContext().contentResolver.delete(uri, selection, selectionArgs)
-                    takePhoto(fileName, relativePath)
+        lifecycleScope.launch {
+            viewModel.captureEvent.collect { action ->
+                when (action) {
+                    is CameraViewModel.CaptureAction.Proceed -> takePhoto(action.name, action.path)
+                    is CameraViewModel.CaptureAction.ConfirmOverwrite -> {
+                        MaterialAlertDialogBuilder(requireContext())
+                            .setTitle(getString(R.string.dialog_overwrite_title))
+                            .setMessage(getString(R.string.dialog_overwrite_msg, action.lote))
+                            .setNegativeButton(getString(R.string.action_cancel), null)
+                            .setPositiveButton(getString(R.string.action_overwrite)) { _, _ ->
+                                viewModel.deleteAndProceed(action.name, action.path)
+                            }
+                            .show()
+                    }
                 }
-                .show()
-        } else {
-            takePhoto(fileName, relativePath)
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.errorEvent.collect { error ->
+                Snackbar.make(binding.root, error, Snackbar.LENGTH_SHORT)
+                    .setAnchorView(binding.bottomCard)
+                    .show()
+            }
         }
     }
 
     private fun takePhoto(name: String, relativePath: String) {
         val imageCapture = imageCapture ?: return
-
-        saveValues(
-            binding.etSector.text.toString().trim().padStart(2, '0'),
-            binding.etManzana.text.toString().trim().padStart(3, '0'),
-            binding.etLote.text.toString().trim().padStart(3, '0'),
-            binding.etLetra.text.toString().trim()
-        )
 
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
@@ -197,18 +165,15 @@ class CameraFragment : Fragment() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exc: ImageCaptureException) {
                     val msg = when (exc.imageCaptureError) {
-                        ImageCapture.ERROR_FILE_IO -> "Error al guardar la foto"
+                        ImageCapture.ERROR_FILE_IO -> getString(R.string.error_export).replace(": %1\$s", "") // Reutilizando o simplificando
                         ImageCapture.ERROR_CAPTURE_FAILED -> "Captura fallida"
-                        ImageCapture.ERROR_CAMERA_CLOSED -> "Cámara cerrada"
-                        ImageCapture.ERROR_INVALID_CAMERA -> "Cámara no disponible"
-                        else -> "Error desconocido"
+                        else -> "Error en cámara"
                     }
                     Snackbar.make(binding.root, "❌ $msg", Snackbar.LENGTH_SHORT)
                         .setAnchorView(binding.bottomCard)
                         .show()
                 }
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    sharedPreferences.edit().putString("last_photo_uri", output.savedUri.toString()).apply()
                     Snackbar.make(binding.root, "📸 $name", Snackbar.LENGTH_SHORT)
                         .setAnchorView(binding.bottomCard)
                         .show()
@@ -272,13 +237,10 @@ class CameraFragment : Fragment() {
     }
 
     companion object {
-        private val REQUIRED_PERMISSIONS =
-            mutableListOf (
-                Manifest.permission.CAMERA
-            ).apply {
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                }
-            }.toTypedArray()
+        private val REQUIRED_PERMISSIONS = mutableListOf(Manifest.permission.CAMERA).apply {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }.toTypedArray()
     }
 }

@@ -1,5 +1,7 @@
 package com.desito.catastrophotos
+import com.desito.catastrophotos.R
 
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
@@ -9,14 +11,15 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import com.desito.catastrophotos.databinding.ItemPhotoBinding
 
 class PhotoAdapter(
-    private val items: List<PhotoUIState>,
     private val getThemeColor: (Int) -> Int,
     private val onClick: (Uri?, String) -> Unit,
     private val onDelete: (Uri?, String) -> Unit
-) : RecyclerView.Adapter<PhotoAdapter.ViewHolder>() {
+) : ListAdapter<PhotoUIState, PhotoAdapter.ViewHolder>(DiffCallback) {
 
     inner class ViewHolder(val b: ItemPhotoBinding) : RecyclerView.ViewHolder(b.root)
 
@@ -25,7 +28,7 @@ class PhotoAdapter(
     )
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = items[position]
+        val item = getItem(position)
         val fileName = item.name
         val resources = holder.itemView.resources
 
@@ -57,5 +60,8 @@ class PhotoAdapter(
         holder.b.btnDelete.setOnClickListener { onDelete(item.uri, item.name) }
     }
 
-    override fun getItemCount() = items.size
+    companion object DiffCallback : DiffUtil.ItemCallback<PhotoUIState>() {
+        override fun areItemsTheSame(oldItem: PhotoUIState, newItem: PhotoUIState) = oldItem.name == newItem.name
+        override fun areContentsTheSame(oldItem: PhotoUIState, newItem: PhotoUIState) = oldItem == newItem
+    }
 }
