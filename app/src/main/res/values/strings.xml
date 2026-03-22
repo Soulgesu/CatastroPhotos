@@ -17,4 +17,6 @@
     <string name="error_export">Error al exportar: %1$s</string>
     <string name="error_delete_photo">No se pudo eliminar la foto</string>
     <string name="action_share">Enviar catastro</string>
+    <string name="title_delete_folders">¿Eliminar carpetas?</string>
+    <string name="msg_delete_folders">Se eliminarán %1$d carpetas y todos sus archivos permanentemente.</string>
 </resources>

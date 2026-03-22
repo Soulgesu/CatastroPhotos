@@ -213,4 +213,23 @@ class MediaRepository(private val context: Context) {
             false
         }
     }
+
+    suspend fun deleteFolders(folders: List<String>): Boolean = withContext(Dispatchers.IO) {
+        try {
+            for (folderName in folders) {
+                val selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ?"
+                val selectionArgs = arrayOf("Pictures/CatastroPhotos/$folderName/")
+                contentResolver.delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, selection, selectionArgs)
+                // Limpiar metadatos de la carpeta
+                folderPrefs.edit().apply {
+                    remove("hash_$folderName")
+                    remove("files_$folderName")
+                    apply()
+                }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

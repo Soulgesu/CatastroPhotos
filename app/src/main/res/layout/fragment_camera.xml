@@ -27,6 +27,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <ImageView
+            android:id="@+id/viewFocusRing"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_gravity="center"
+            android:src="@drawable/focus_ring"
+            android:visibility="invisible"
+            app:tint="@android:color/white" />
+
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Panel de Control Inferior -->

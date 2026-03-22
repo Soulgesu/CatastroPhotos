@@ -103,9 +103,25 @@ class GalleryFragment : Fragment() {
                     viewModel.selectAll()
                     true 
                 }
+                R.id.action_delete -> {
+                    confirmDeleteFolders()
+                    true
+                }
                 else -> false
             }
         }
+    }
+
+    private fun confirmDeleteFolders() {
+        val count = viewModel.selectedFolders.value.size
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.title_delete_folders)
+            .setMessage(getString(R.string.msg_delete_folders, count))
+            .setNegativeButton(R.string.action_cancel, null)
+            .setPositiveButton(R.string.action_delete) { _, _ ->
+                viewModel.deleteSelectedFolders()
+            }
+            .show()
     }
 
     private fun setupNavigation() {

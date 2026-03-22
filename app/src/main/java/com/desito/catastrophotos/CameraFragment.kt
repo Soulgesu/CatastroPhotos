@@ -212,23 +212,33 @@ class CameraFragment : Fragment() {
         }
         val scaleGestureDetector = ScaleGestureDetector(requireContext(), listener)
         binding.viewFinder.setOnTouchListener { view, event ->
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
-                    view.parent.requestDisallowInterceptTouchEvent(true)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    view.parent.requestDisallowInterceptTouchEvent(false)
-                }
-            }
-
             scaleGestureDetector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP && event.pointerCount == 1) {
                 val factory = binding.viewFinder.meteringPointFactory
                 val point = factory.createPoint(event.x, event.y)
                 camera?.cameraControl?.startFocusAndMetering(FocusMeteringAction.Builder(point).build())
+                animateFocusRing(event.x, event.y)
             }
             true
         }
+    }
+
+    private fun animateFocusRing(x: Float, y: Float) {
+        val ring = binding.viewFocusRing
+        ring.x = x - ring.width / 2
+        ring.y = y - ring.height / 2
+        ring.visibility = View.VISIBLE
+        ring.alpha = 1f
+        ring.scaleX = 1.5f
+        ring.scaleY = 1.5f
+
+        ring.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(0f)
+            .setDuration(300)
+            .withEndAction { ring.visibility = View.INVISIBLE }
+            .start()
     }
 
     override fun onDestroyView() {

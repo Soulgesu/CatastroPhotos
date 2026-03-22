@@ -116,4 +116,19 @@ class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
             }
         }
     }
+
+    fun deleteSelectedFolders() {
+        val foldersToDelete = _selectedFolders.value.toList()
+        if (foldersToDelete.isEmpty()) return
+
+        viewModelScope.launch {
+            if (repository.deleteFolders(foldersToDelete)) {
+                _isSelectionMode.value = false
+                _selectedFolders.value = emptySet()
+                loadFolders()
+            } else {
+                _errorEvent.emit("No se pudieron eliminar algunas carpetas")
+            }
+        }
+    }
 }
