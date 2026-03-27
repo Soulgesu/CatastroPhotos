@@ -14,6 +14,7 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
+import androidx.camera.core.ImageCapture.OutputFileOptions
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
@@ -38,6 +39,10 @@ class CameraFragment : Fragment() {
         AppViewModelFactory(MediaRepository(requireContext().applicationContext), requireContext().applicationContext)
     }
 
+    private var currentRatioIndex = 0
+    private val ratios = listOf("4:3", "1:1", "Full")
+    private var orientationEventListener: android.view.OrientationEventListener? = null
+
     private val activityResultLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val permissionGranted = REQUIRED_PERMISSIONS.all { permissions[it] == true }
@@ -59,6 +64,28 @@ class CameraFragment : Fragment() {
         setupControlButtons()
         observeViewModel()
 
+        orientationEventListener = object : android.view.OrientationEventListener(requireContext()) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+                val rotation = when (orientation) {
+                    in 45..134 -> Surface.ROTATION_270 // Reverse Landscape
+                    in 135..224 -> Surface.ROTATION_180 // Reverse Portrait
+                    in 225..314 -> Surface.ROTATION_90 // Landscape
+                    else -> Surface.ROTATION_0 // Portrait
+                }
+                imageCapture?.targetRotation = rotation
+            }
+        }
+
+        binding.btnAspectRatio.setOnClickListener {
+            currentRatioIndex = (currentRatioIndex + 1) % ratios.size
+            binding.btnAspectRatio.text = ratios[currentRatioIndex]
+            updateLayoutForAspectRatio()
+            if (allPermissionsGranted()) {
+                startCamera()
+            }
+        }
+
         if (allPermissionsGranted()) {
             startCamera()
         } else {
@@ -66,6 +93,16 @@ class CameraFragment : Fragment() {
         }
 
         binding.btnCapture.setOnClickListener { viewModel.onCaptureClicked() }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        orientationEventListener?.enable()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        orientationEventListener?.disable()
     }
 
     override fun onResume() {
@@ -118,13 +155,17 @@ class CameraFragment : Fragment() {
         lifecycleScope.launch {
             viewModel.captureEvent.collect { action ->
                 when (action) {
-                    is CameraViewModel.CaptureAction.Proceed -> takePhoto(action.name, action.path)
+                    is CameraViewModel.CaptureAction.Proceed -> {
+                        showFlashAnimation()
+                        takePhoto(action.name, action.path)
+                    }
                     is CameraViewModel.CaptureAction.ConfirmOverwrite -> {
                         MaterialAlertDialogBuilder(requireContext())
                             .setTitle(getString(R.string.dialog_overwrite_title))
                             .setMessage(getString(R.string.dialog_overwrite_msg, action.lote))
                             .setNegativeButton(getString(R.string.action_cancel), null)
                             .setPositiveButton(getString(R.string.action_overwrite)) { _, _ ->
+                                showFlashAnimation()
                                 viewModel.deleteAndProceed(action.name, action.path)
                             }
                             .show()
@@ -135,11 +176,19 @@ class CameraFragment : Fragment() {
 
         lifecycleScope.launch {
             viewModel.errorEvent.collect { error ->
-                Snackbar.make(binding.root, error, Snackbar.LENGTH_SHORT)
-                    .setAnchorView(binding.bottomCard)
-                    .show()
+                Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showFlashAnimation() {
+        binding.flashOverlay.alpha = 1f
+        binding.flashOverlay.visibility = View.VISIBLE
+        binding.flashOverlay.animate()
+            .alpha(0f)
+            .setDuration(150)
+            .withEndAction { binding.flashOverlay.visibility = View.GONE }
+            .start()
     }
 
     private fun takePhoto(name: String, relativePath: String) {
@@ -165,23 +214,29 @@ class CameraFragment : Fragment() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exc: ImageCaptureException) {
                     val msg = when (exc.imageCaptureError) {
-                        ImageCapture.ERROR_FILE_IO -> getString(R.string.error_export).replace(": %1\$s", "") // Reutilizando o simplificando
+                        ImageCapture.ERROR_FILE_IO -> getString(R.string.error_export).replace(": %1\$s", "")
                         ImageCapture.ERROR_CAPTURE_FAILED -> "Captura fallida"
                         else -> "Error en cámara"
                     }
-                    Snackbar.make(binding.root, "❌ $msg", Snackbar.LENGTH_SHORT)
-                        .setAnchorView(binding.bottomCard)
-                        .show()
+                    Toast.makeText(requireContext(), "❌ $msg", Toast.LENGTH_SHORT).show()
                 }
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     val currentFolder = "${viewModel.sector.value}_${viewModel.manzana.value}"
                     viewModel.notifyPhotoSaved(currentFolder)
-                    Snackbar.make(binding.root, "📸 $name", Snackbar.LENGTH_SHORT)
-                        .setAnchorView(binding.bottomCard)
-                        .show()
+                    Toast.makeText(requireContext(), "📸 $name guardada", Toast.LENGTH_SHORT).show()
                 }
             }
         )
+    }
+
+    private fun updateLayoutForAspectRatio() {
+        val layoutParams = binding.cameraCard.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+        when (currentRatioIndex) {
+            0 -> layoutParams.dimensionRatio = "3:4" // 4:3 en vertical
+            1 -> layoutParams.dimensionRatio = "1:1" // Cuadrado
+            2 -> layoutParams.dimensionRatio = null  // Full (llena el espacio)
+        }
+        binding.cameraCard.layoutParams = layoutParams
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -189,25 +244,49 @@ class CameraFragment : Fragment() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener({
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-            val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
-            .setAspectRatioStrategy(androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
-            .build()
-
-        val preview = Preview.Builder()
-            .setResolutionSelector(resolutionSelector)
-            .build()
-            .also {
-                it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+            
+            // Decidir la estrategia de resolución de CameraX
+            val aspectRatioStrategy = if (currentRatioIndex == 2) {
+                androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+            } else {
+                androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
             }
 
-        imageCapture = ImageCapture.Builder()
-            .setResolutionSelector(resolutionSelector)
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
+            val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                .setAspectRatioStrategy(aspectRatioStrategy)
+                .build()
+
+            val preview = Preview.Builder()
+                .setResolutionSelector(resolutionSelector)
+                .build()
+                .also {
+                    it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
+                }
+
+            imageCapture = ImageCapture.Builder()
+                .setResolutionSelector(resolutionSelector)
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
+                
+            val viewPort = ViewPort.Builder(
+                when (currentRatioIndex) {
+                    0 -> android.util.Rational(3, 4)
+                    1 -> android.util.Rational(1, 1)
+                    else -> android.util.Rational(9, 16) // Ajustable a FullScreen
+                },
+                binding.viewFinder.display?.rotation ?: Surface.ROTATION_0
+            ).build()
+
+            val useCaseGroup = UseCaseGroup.Builder()
+                .addUseCase(preview)
+                .addUseCase(imageCapture!!)
+                .setViewPort(viewPort)
+                .build()
+
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             try {
                 cameraProvider.unbindAll()
-                camera = cameraProvider.bindToLifecycle(viewLifecycleOwner, cameraSelector, preview, imageCapture)
+                camera = cameraProvider.bindToLifecycle(viewLifecycleOwner, cameraSelector, useCaseGroup)
                 setupZoomAndFocus()
             } catch(exc: Exception) {
                 Log.e("CameraFragment", "Error camera", exc)

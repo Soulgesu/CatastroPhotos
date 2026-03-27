@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
-import androidx.viewpager2.widget.ViewPager2
 import com.desito.catastrophotos.databinding.ActivityMainBinding
 import com.google.android.material.color.DynamicColors
 
@@ -17,15 +16,12 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // En orientación vertical, viewPager es un ViewPager2.
-        // En orientación horizontal, es el root ConstraintLayout.
+        // El viewPager siempre es ViewPager2 en la orientación vertical (única)
         val viewPager = binding.viewPager
-        if (viewPager is ViewPager2) {
-            viewPager.adapter = object : FragmentStateAdapter(this) {
-                override fun getItemCount(): Int = 2
-                override fun createFragment(position: Int): Fragment {
-                    return if (position == 0) CameraFragment() else GalleryFragment()
-                }
+        viewPager.adapter = object : FragmentStateAdapter(this) {
+            override fun getItemCount(): Int = 2
+            override fun createFragment(position: Int): Fragment {
+                return if (position == 0) CameraFragment() else GalleryFragment()
             }
         }
     }

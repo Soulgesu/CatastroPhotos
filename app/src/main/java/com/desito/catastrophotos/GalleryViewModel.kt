@@ -30,8 +30,11 @@ class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
     private val _isSelectionMode = MutableStateFlow(false)
     val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
 
-    private val _exportEvent = MutableSharedFlow<Uri>()
-    val exportEvent: SharedFlow<Uri> = _exportEvent.asSharedFlow()
+    private val _shareEvent = MutableSharedFlow<Uri>()
+    val shareEvent: SharedFlow<Uri> = _shareEvent.asSharedFlow()
+
+    private val _saveEvent = MutableSharedFlow<Uri>()
+    val saveEvent: SharedFlow<Uri> = _saveEvent.asSharedFlow()
 
     private val _errorEvent = MutableSharedFlow<String>()
     val errorEvent: SharedFlow<String> = _errorEvent.asSharedFlow()
@@ -118,7 +121,15 @@ class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
         }
     }
 
-    fun exportSelected() {
+    fun exportAndShareSelected() {
+        exportInternal(isShare = true)
+    }
+
+    fun exportAndSaveSelected() {
+        exportInternal(isShare = false)
+    }
+
+    private fun exportInternal(isShare: Boolean) {
         val foldersToExport = _selectedFolders.value.toList()
         if (foldersToExport.isEmpty()) return
 
@@ -126,7 +137,11 @@ class GalleryViewModel(private val repository: MediaRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 val uri = repository.exportFolders(foldersToExport)
-                _exportEvent.emit(uri)
+                if (isShare) {
+                    _shareEvent.emit(uri)
+                } else {
+                    _saveEvent.emit(uri)
+                }
                 _isSelectionMode.value = false
                 _selectedFolders.value = emptySet()
                 loadFolders() // Refrescar estado "dirty"

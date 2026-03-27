@@ -7,6 +7,11 @@
         app:showAsAction="ifRoom"
         android:icon="@android:drawable/checkbox_on_background" />
     <item
+        android:id="@+id/action_save"
+        android:title="Guardar ZIP aquí"
+        app:showAsAction="always"
+        android:icon="@android:drawable/ic_menu_save" />
+    <item
         android:id="@+id/action_export"
         android:title="Exportar y Enviar"
         app:showAsAction="always"

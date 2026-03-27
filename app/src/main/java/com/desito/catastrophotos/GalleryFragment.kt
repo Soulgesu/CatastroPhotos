@@ -12,6 +12,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.AttrRes
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -38,6 +39,25 @@ class GalleryFragment : Fragment() {
 
     private lateinit var folderAdapter: FolderAdapter
     private lateinit var photoAdapter: PhotoAdapter
+
+    private var pendingUriToSave: Uri? = null
+
+    private val createDocumentLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { destinationUri ->
+        if (destinationUri != null) {
+            val sourceUri = pendingUriToSave ?: return@registerForActivityResult
+            try {
+                requireContext().contentResolver.openInputStream(sourceUri)?.use { input ->
+                    requireContext().contentResolver.openOutputStream(destinationUri)?.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Toast.makeText(requireContext(), "Archivo ZIP guardado exitosamente", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error al guardar el archivo", Toast.LENGTH_SHORT).show()
+            }
+        }
+        pendingUriToSave = null
+    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentGalleryBinding.inflate(inflater, container, false)
@@ -97,8 +117,12 @@ class GalleryFragment : Fragment() {
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_export -> { 
-                    viewModel.exportSelected()
+                    viewModel.exportAndShareSelected()
                     true 
+                }
+                R.id.action_save -> {
+                    viewModel.exportAndSaveSelected()
+                    true
                 }
                 R.id.action_select_all -> { 
                     viewModel.selectAll()
@@ -193,8 +217,14 @@ class GalleryFragment : Fragment() {
                 }
 
                 launch {
-                    viewModel.exportEvent.collect { uri ->
+                    viewModel.shareEvent.collect { uri ->
                         shareZip(uri)
+                    }
+                }
+
+                launch {
+                    viewModel.saveEvent.collect { uri ->
+                        promptSaveZip(uri)
                     }
                 }
 
@@ -242,6 +272,11 @@ class GalleryFragment : Fragment() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(intent, getString(R.string.action_share)))
+    }
+
+    private fun promptSaveZip(uri: Uri) {
+        pendingUriToSave = uri
+        createDocumentLauncher.launch("CatastroExport_${System.currentTimeMillis()}.zip")
     }
 
     private fun confirmDelete(uri: Uri, name: String, folderName: String) {

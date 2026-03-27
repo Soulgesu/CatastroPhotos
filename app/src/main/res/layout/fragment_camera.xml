@@ -27,6 +27,14 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <View
+            android:id="@+id/flashOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#B3FFFFFF"
+            android:alpha="0"
+            android:visibility="gone" />
+
         <ImageView
             android:id="@+id/viewFocusRing"
             android:layout_width="64dp"
@@ -35,6 +43,16 @@
             android:src="@drawable/focus_ring"
             android:visibility="invisible"
             app:tint="@android:color/white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAspectRatio"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="8dp"
+            android:text="4:3"
+            android:textColor="?attr/colorPrimary" />
 
     </com.google.android.material.card.MaterialCardView>
 
@@ -68,7 +86,7 @@
                     android:layout_marginEnd="6dp">
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilSector"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Sector"
@@ -118,7 +136,7 @@
                     android:layout_marginEnd="6dp">
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilManzana"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Mz"
@@ -168,7 +186,7 @@
                     android:layout_marginEnd="6dp">
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilLote"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Lote"
@@ -211,7 +229,7 @@
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
