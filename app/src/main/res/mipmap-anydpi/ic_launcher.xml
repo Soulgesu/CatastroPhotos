@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Solid Navy Blue Background -->
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M0,0h108v108h-108z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.25"
+        android:scaleY="1.25">
+        
+        <!-- Map Pin (Orange Base) -->
+        <path
+            android:fillColor="#FF9800"
+            android:pathData="M 54 18 A 26 26 0 0 0 28 44 C 28 62 54 90 54 90 C 54 90 80 62 80 44 A 26 26 0 0 0 54 18 Z" />
+            
+        <!-- Camera Body (White) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 70 34 L 64 34 L 60 28 L 48 28 L 44 34 L 38 34 C 34.6 34 32 36.6 32 40 L 32 62 C 32 65.4 34.6 68 38 68 L 70 68 C 73.4 68 76 65.4 76 62 L 76 40 C 76 36.6 73.4 34 70 34 Z" />
+            
+        <!-- Camera Lens Outer (Navy Blue) -->
+        <path
+            android:fillColor="#1A237E"
+            android:pathData="M 54 40 A 10 10 0 1 0 54 60 A 10 10 0 1 0 54 40 Z" />
+            
+        <!-- Camera Lens Inner (Orange) -->
+        <path
+            android:fillColor="#FF9800"
+            android:pathData="M 54 43 A 7 7 0 1 0 54 57 A 7 7 0 1 0 54 43 Z" />
+            
+        <!-- Camera Lens Flash Reflection (White) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 51 46 A 2 2 0 1 0 51 50 A 2 2 0 1 0 51 46 Z" />
+    </group>
+</vector>
