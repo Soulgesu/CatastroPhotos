@@ -69,6 +69,7 @@ class GalleryFragment : Fragment() {
         setupAdapters()
         setupRecyclerView()
         setupToolbar()
+        setupFabButtons()
         setupNavigation()
         observeViewModel()
     }
@@ -116,14 +117,6 @@ class GalleryFragment : Fragment() {
     private fun setupToolbar() {
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
-                R.id.action_export -> { 
-                    viewModel.exportAndShareSelected()
-                    true 
-                }
-                R.id.action_save -> {
-                    viewModel.exportAndSaveSelected()
-                    true
-                }
                 R.id.action_select_all -> { 
                     viewModel.selectAll()
                     true 
@@ -134,6 +127,15 @@ class GalleryFragment : Fragment() {
                 }
                 else -> false
             }
+        }
+    }
+
+    private fun setupFabButtons() {
+        binding.fabSave.setOnClickListener {
+            viewModel.exportAndSaveSelected()
+        }
+        binding.fabShare.setOnClickListener {
+            viewModel.exportAndShareSelected()
         }
     }
 
@@ -206,6 +208,7 @@ class GalleryFragment : Fragment() {
                     viewModel.isSelectionMode.collect { isSelection ->
                         updateToolbar(viewModel.currentFolder.value, isSelection, viewModel.selectedFolders.value.size)
                         folderAdapter.notifyDataSetChanged()
+                        binding.llFloatingActions.visibility = if (isSelection) View.VISIBLE else View.GONE
                     }
                 }
 

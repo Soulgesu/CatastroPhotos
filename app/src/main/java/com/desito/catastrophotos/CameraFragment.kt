@@ -119,7 +119,7 @@ class CameraFragment : Fragment() {
     private fun setupInputs() {
         // Letra Spinner
         val letters = mutableListOf("") + ('A'..'Z').map { it.toString() }
-        val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_dropdown_item_1line, letters)
+        val adapter = ArrayAdapter(requireContext(), R.layout.item_dropdown_letra, letters)
         binding.etLetra.setAdapter(adapter)
 
         // Escuchar cambios y actualizar ViewModel
@@ -127,6 +127,29 @@ class CameraFragment : Fragment() {
         binding.etManzana.doAfterTextChanged { viewModel.updateManzana(it?.toString() ?: "") }
         binding.etLote.doAfterTextChanged { viewModel.updateLote(it?.toString() ?: "") }
         binding.etLetra.doAfterTextChanged { viewModel.updateLetra(it?.toString() ?: "") }
+
+        // Formatear al perder el foco (rellenar con ceros a la izquierda y mínimo 1)
+        binding.etSector.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus && !binding.etSector.text.isNullOrEmpty()) {
+                val value = (binding.etSector.text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
+                val padded = value.toString().padStart(2, '0')
+                if (binding.etSector.text.toString() != padded) binding.etSector.setText(padded)
+            }
+        }
+        binding.etManzana.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus && !binding.etManzana.text.isNullOrEmpty()) {
+                val value = (binding.etManzana.text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
+                val padded = value.toString().padStart(3, '0')
+                if (binding.etManzana.text.toString() != padded) binding.etManzana.setText(padded)
+            }
+        }
+        binding.etLote.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus && !binding.etLote.text.isNullOrEmpty()) {
+                val value = (binding.etLote.text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
+                val padded = value.toString().padStart(3, '0')
+                if (binding.etLote.text.toString() != padded) binding.etLote.setText(padded)
+            }
+        }
     }
 
     private fun setupControlButtons() {
@@ -218,12 +241,12 @@ class CameraFragment : Fragment() {
                         ImageCapture.ERROR_CAPTURE_FAILED -> "Captura fallida"
                         else -> "Error en cámara"
                     }
-                    Toast.makeText(requireContext(), "❌ $msg", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show()
                 }
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                     val currentFolder = "${viewModel.sector.value}_${viewModel.manzana.value}"
                     viewModel.notifyPhotoSaved(currentFolder)
-                    Toast.makeText(requireContext(), "📸 $name guardada", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "$name guardada", Toast.LENGTH_SHORT).show()
                 }
             }
         )

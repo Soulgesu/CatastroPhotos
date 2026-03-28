@@ -24,7 +24,7 @@ class CameraViewModel(private val repository: MediaRepository, context: Context)
     private val _lote = MutableStateFlow(prefs.getString("lote", "001") ?: "001")
     val lote: StateFlow<String> = _lote.asStateFlow()
 
-    private val _letra = MutableStateFlow(prefs.getString("letra", "") ?: "")
+    private val _letra = MutableStateFlow("")
     val letra: StateFlow<String> = _letra.asStateFlow()
 
     private val _captureEvent = MutableSharedFlow<CaptureAction>()
@@ -38,16 +38,16 @@ class CameraViewModel(private val repository: MediaRepository, context: Context)
         data class ConfirmOverwrite(val name: String, val path: String, val lote: String) : CaptureAction()
     }
 
-    fun updateSector(value: String) { _sector.value = value.padStart(2, '0'); save() }
-    fun updateManzana(value: String) { _manzana.value = value.padStart(3, '0'); save() }
-    fun updateLote(value: String) { _lote.value = value.padStart(3, '0'); save() }
+    fun updateSector(value: String) { _sector.value = value; save() }
+    fun updateManzana(value: String) { _manzana.value = value; save() }
+    fun updateLote(value: String) { _lote.value = value; save() }
     fun updateLetra(value: String) { _letra.value = value; save() }
 
     fun incrementValue(type: String, delta: Int) {
         when (type) {
-            "sector" -> updateSector(((_sector.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString())
-            "manzana" -> updateManzana(((_manzana.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString())
-            "lote" -> updateLote(((_lote.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString())
+            "sector" -> updateSector(((_sector.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString().padStart(2, '0'))
+            "manzana" -> updateManzana(((_manzana.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString().padStart(3, '0'))
+            "lote" -> updateLote(((_lote.value.toIntOrNull() ?: 0) + delta).coerceAtLeast(1).toString().padStart(3, '0'))
         }
     }
 
@@ -62,15 +62,15 @@ class CameraViewModel(private val repository: MediaRepository, context: Context)
     }
 
     fun onCaptureClicked() {
-        val s = _sector.value
-        val m = _manzana.value
-        val l = _lote.value
-        val let = _letra.value
-
-        if (s.isEmpty() || m.isEmpty() || l.isEmpty()) {
+        if (_sector.value.isEmpty() || _manzana.value.isEmpty() || _lote.value.isEmpty()) {
             viewModelScope.launch { _errorEvent.emit("Completa Sector, Manzana y Lote") }
             return
         }
+
+        val s = (_sector.value.toIntOrNull() ?: 1).coerceAtLeast(1).toString().padStart(2, '0')
+        val m = (_manzana.value.toIntOrNull() ?: 1).coerceAtLeast(1).toString().padStart(3, '0')
+        val l = (_lote.value.toIntOrNull() ?: 1).coerceAtLeast(1).toString().padStart(3, '0')
+        val let = _letra.value
 
         val folderName = "${s}_${m}"
         val fileName = if (let.isEmpty()) "${s}_${m}_${l}" else "${s}_${m}_${l}_${let}"
